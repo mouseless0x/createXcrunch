@@ -116,6 +116,14 @@ pub struct CliArgs {
         help_heading = "Output options"
     )]
     pub output: String,
+
+    #[arg(
+        id = "collector-endpoint",
+        long = "collector-endpoint",
+        long_help = "URL endpoint for the collector.",
+        help_heading = "Output options"
+    )]
+    pub endpoint_url: Option<String>,
 }
 
 #[derive(Args)]
@@ -141,3 +149,4 @@ pub enum Commands {
     #[command(about = "Mine for a CREATE2 deployment address.")]
     Create2(Create2Args),
 }
+

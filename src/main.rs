@@ -54,6 +54,7 @@ fn main() {
                 Some(&init_code_hash),
                 reward,
                 &output,
+                args.cli_args.endpoint_url.as_deref(),
             ) {
                 Ok(config) => match gpu(config) {
                     Ok(_) => (),
@@ -102,6 +103,7 @@ fn main() {
                 None,
                 reward,
                 &output,
+                args.endpoint_url.as_deref(),
             ) {
                 Ok(config) => match gpu(config) {
                     Ok(_) => (),

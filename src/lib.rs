@@ -5,6 +5,7 @@ use fs4::FileExt;
 use itertools::chain;
 use ocl::{Buffer, Context, Device, MemFlags, Platform, ProQue, Program, Queue};
 use rand::{thread_rng, Rng};
+use reqwest::blocking::Client;
 use separator::Separatable;
 use std::{
     fmt::Write as _,
@@ -74,9 +75,11 @@ pub struct Config<'a> {
     pub create_variant: CreateXVariant,
     pub reward: RewardVariant,
     pub output: &'a str,
+    pub endpoint_url: String,
 }
 
 impl<'a> Config<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         gpu_device: u8,
         factory_address_str: &str,
@@ -85,6 +88,7 @@ impl<'a> Config<'a> {
         init_code_hash: Option<&str>,
         reward: RewardVariant,
         output: &'a str,
+        endpoint_url: Option<&str>,
     ) -> Result<Self, &'static str> {
         // convert main arguments from hex string to vector of bytes
         let factory_address_vec =
@@ -205,6 +209,7 @@ impl<'a> Config<'a> {
             create_variant,
             reward,
             output,
+            endpoint_url: endpoint_url.unwrap_or("").to_string(),
         })
     }
 }
@@ -216,6 +221,9 @@ pub fn gpu(config: Config) -> ocl::Result<()> {
         "Setting up OpenCL miner using device {}...",
         config.gpu_device
     );
+
+    // CUSTOM
+    let client = Client::new();
 
     // (create if necessary) and open a file where found salts will be written
     let file = output_file(&config);
@@ -503,9 +511,24 @@ pub fn gpu(config: Config) -> ocl::Result<()> {
             total += 1;
         }
 
-        let output = format!("0x{} => 0x{}", hex::encode(salt), hex::encode(address),);
+        let output = format!("0x{} => 0x{}", hex::encode(&salt), hex::encode(&address),);
 
         let show = format!("{output} ({leading} / {total})");
+
+        // Send result to configured endpoint
+        let result = client
+            .post(&config.endpoint_url)
+            .json(&serde_json::json!({
+                "salt": format!("0x{}", hex::encode(salt)),
+                "address": format!("0x{}", hex::encode(address)),
+                "score": leading
+            }))
+            .send();
+
+        if let Err(e) = result {
+            eprintln!("Failed to send result to endpoint: {}", e);
+        }
+
         match config.reward {
             RewardVariant::Matching { pattern: _ } => {
                 found_list.push(output.to_string());
